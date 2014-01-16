@@ -5,6 +5,7 @@
 
 static bool protocol_hasSelector(Protocol *protocol, SEL selector, BOOL is_required_method, BOOL is_instance_method) {
     objc_method_description method_description = protocol_getMethodDescription(protocol, selector, is_required_method, is_instance_method);
+    method_description = protocol_getMethodDescription(protocol, selector, is_required_method, is_instance_method);
     return method_description.name && method_description.types;
 }
 
