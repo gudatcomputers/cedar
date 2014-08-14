@@ -2,9 +2,9 @@
 // Normally you would include this file out of the framework.  However, we're
 // testing the framework here, so including the file from the framework will
 // conflict with the compiler attempting to include the file from the project.
-#import "SpecHelper.h"
+#import "CDRSpecHelper.h"
 #else
-#import <Cedar/SpecHelper.h>
+#import <Cedar/CDRSpecHelper.h>
 #endif
 
 #import "CDRSpecFailure.h"
@@ -86,6 +86,9 @@ describe(@"Spec", ^{
     context(@"contexted specs should be pending", PENDING);
     context(@"contexted specs should also be pending", nil);
     xcontext(@"xcontexted specs should be pending", ^{});
+
+    describe(@"empty describe blocks should be pending", ^{});
+    context(@"empty context blocks should be pending", ^{});
 });
 
 describe(@"The spec failure exception", ^{
@@ -182,10 +185,21 @@ describe(@"a describe block", ^{
     describe(@"that passes a value to the shared example context", ^{
         beforeEach(^{
             globalValue__ = @"something";
-            [[SpecHelper specHelper].sharedExampleContext setObject:globalValue__ forKey:@"value"];
+            [[CDRSpecHelper specHelper].sharedExampleContext setObject:globalValue__ forKey:@"value"];
         });
 
         itShouldBehaveLike(@"a shared example group that receives a value in the context");
+    });
+
+    describe(@"that passes a value in-line to the shared example context", ^{
+        beforeEach(^{
+            globalValue__ = @"something";
+        });
+
+        expect(globalValue__).to(be_nil);
+        itShouldBehaveLike(@"a shared example group that receives a value in the context", ^(NSMutableDictionary *context) {
+            context[@"value"] = globalValue__;
+        });
     });
 
     itShouldBehaveLike(@"a shared example group that contains a failing spec");
@@ -207,7 +221,7 @@ SHARED_EXAMPLE_GROUPS_BEGIN(Specs)
 
 sharedExamplesFor(@"a describe context that contains a beforeEach in a shared example group", ^(NSDictionary *context) {
     beforeEach(^{
-        expect([[SpecHelper specHelper].sharedExampleContext count]).to(equal(0));
+        expect([[CDRSpecHelper specHelper].sharedExampleContext count]).to(equal(0));
         globalValue__ = [NSString string];
     });
 

@@ -101,13 +101,27 @@
 
 
 - (void)runWithDispatcher:(CDRReportDispatcher *)dispatcher {
+    if (startDate_) {
+        [[NSException exceptionWithName:NSInternalInconsistencyException
+                                 reason:[NSString stringWithFormat:@"Attempt to run example group twice: %@", [self fullText]]
+                               userInfo:nil] raise];
+    }
+
     [dispatcher runWillStartExampleGroup:self];
+    [startDate_ release];
     startDate_ = [[NSDate alloc] init];
+
     [self startObservingExamples];
     [examples_ makeObjectsPerformSelector:@selector(runWithDispatcher:) withObject:dispatcher];
     [self stopObservingExamples];
+
+    [endDate_ release];
     endDate_ = [[NSDate alloc] init];
     [dispatcher runDidFinishExampleGroup:self];
+
+    [beforeBlocks_ release]; beforeBlocks_ = nil;
+    [afterBlocks_ release]; afterBlocks_ = nil;
+    self.subjectActionBlock = nil;
 }
 
 - (BOOL)hasFocusedExamples {
@@ -145,22 +159,25 @@
     return !isRoot_;
 }
 
+
 #pragma mark KVO
+
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context {
     [self willChangeValueForKey:@"state"];
     [self didChangeValueForKey:@"state"];
 }
 
 #pragma mark Private interface
+
 - (void)startObservingExamples {
     for (id example in examples_) {
         [example addObserver:self forKeyPath:@"state" options:0 context:NULL];
     }
 }
+
 - (void)stopObservingExamples {
     for (id example in examples_) {
         [example removeObserver:self forKeyPath:@"state"];
     }
 }
-
 @end

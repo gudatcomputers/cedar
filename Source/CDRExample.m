@@ -1,6 +1,6 @@
 #import "CDRExample.h"
 #import "CDRSpecFailure.h"
-#import "SpecHelper.h"
+#import "CDRSpecHelper.h"
 #import "CDRReportDispatcher.h"
 
 const CDRSpecBlock PENDING = nil;
@@ -26,6 +26,7 @@ const CDRSpecBlock PENDING = nil;
 }
 
 - (void)dealloc {
+    self.failure = nil;
     [block_ release];
     [super dealloc];
 }
@@ -51,10 +52,17 @@ const CDRSpecBlock PENDING = nil;
 }
 
 - (BOOL)isPending {
-    return block_ == nil;
+    return (self.state == CDRExampleStateIncomplete && block_ == nil) || self.state == CDRExampleStatePending;
 }
 
 - (void)runWithDispatcher:(CDRReportDispatcher *)dispatcher {
+    if (self.state != CDRExampleStateIncomplete) {
+        [[NSException exceptionWithName:NSInternalInconsistencyException
+                                 reason:[NSString stringWithFormat:@"Attempt to run example twice: %@", [self fullText]]
+                               userInfo:nil] raise];
+    }
+
+    [startDate_ release];
     startDate_ = [[NSDate alloc] init];
     [dispatcher runWillStartExample:self];
 
@@ -87,9 +95,13 @@ const CDRSpecBlock PENDING = nil;
         }
         [pool drain];
     }
+    [endDate_ release];
     endDate_ = [[NSDate alloc] init];
 
     [dispatcher runDidFinishExample:self];
+
+    [block_ release];
+    block_ = nil;
 }
 
 #pragma mark Private interface

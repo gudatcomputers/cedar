@@ -9,7 +9,7 @@ extern NSMutableArray *expectedCallsInFocusedSpec2__;
 BOOL wereExpectedCallsMade(NSArray *actuallyCalled, NSArray *expectedCalls);
 
 int main (int argc, const char *argv[]) {
-    runSpecs();
+    CDRRunSpecs();
 
     BOOL expectedCallsMade =
         wereExpectedCallsMade(calledInFocusedSpec__, expectedCallsInFocusedSpec__) &&
@@ -28,7 +28,7 @@ BOOL wereExpectedCallsMade(NSArray *callsMade, NSArray *expectedCalls) {
     BOOL expectedCallsMade = YES;
 
     for (NSString *callName in expectedCalls) {
-        if (![callsMade containsObject:callName]){
+        if (![callsMade containsObject:callName]) {
             NSLog(@"Example '%@' was not ran but should have been.", callName);
             expectedCallsMade = NO;
         }

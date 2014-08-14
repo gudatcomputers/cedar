@@ -2,9 +2,9 @@
 // Normally you would include this file out of the framework.  However, we're
 // testing the framework here, so including the file from the framework will
 // conflict with the compiler attempting to include the file from the project.
-#import "SpecHelper.h"
+#import "CDRSpecHelper.h"
 #else
-#import <Cedar/SpecHelper.h>
+#import <Cedar/CDRSpecHelper.h>
 #endif
 
 #import "CDRExampleBase.h"
@@ -14,6 +14,7 @@
 #import "SimpleKeyValueObserver.h"
 #import "FibonacciCalculator.h"
 #import "CDRReportDispatcher.h"
+#import <objc/runtime.h>
 
 using namespace Cedar::Matchers;
 using namespace Cedar::Doubles;
@@ -56,6 +57,44 @@ describe(@"CDRExampleGroup", ^{
 
         it(@"should tell the reporter when the group has finished", ^{
             dispatcher should have_received(@selector(runDidFinishExampleGroup:)).with(group);
+        });
+
+        describe(@"running it a second time", ^{
+            it(@"should fail", ^{
+                ^{ [group runWithDispatcher:dispatcher]; } should raise_exception.with_reason([NSString stringWithFormat:@"Attempt to run example group twice: %@", [group fullText]]);
+            });
+        });
+
+        describe(@"releasing objects captured in spec blocks", ^{
+            __block __weak id weakCapturedObject;
+
+            beforeEach(^{
+                group = [[[CDRExampleGroup alloc] initWithText:groupText] autorelease];
+
+                NSString *capturedObject = [@"abc" mutableCopy];
+                objc_storeWeak(&weakCapturedObject, capturedObject);
+
+                [group addBefore:^{
+                    [capturedObject length];
+                }];
+                [group addAfter:^{
+                    [capturedObject length];
+                }];
+                group.subjectActionBlock = ^{
+                    [capturedObject length];
+                };
+
+                [capturedObject release]; capturedObject = nil;
+                @autoreleasepool {
+                    objc_loadWeak(&weakCapturedObject) should_not be_nil;
+                }
+
+                [group runWithDispatcher:dispatcher];
+            });
+
+            it(@"should allow captured objects to be deallocated once it has finished running", ^{
+                objc_loadWeak(&weakCapturedObject) should be_nil;
+            });
         });
     });
 
@@ -470,25 +509,6 @@ describe(@"CDRExampleGroup", ^{
                     mockObserver should have_received("observeValueForKeyPath:ofObject:change:context:");
                 });
             });
-
-            describe(@"when a child example changes state, but the group state does not change", ^{
-                beforeEach(^{
-                    [group add:failingExample];
-                    [failingExample runWithDispatcher:dispatcher];
-
-                    [group add:passingExample];
-                    CDRExampleState state = group.state;
-                    expect(state).to(equal(CDRExampleStateFailed));
-
-                    mockObserver stub_method("observeValueForKeyPath:ofObject:change:context:").and_raise_exception();
-                });
-
-                it(@"should not report that the state has changed", ^{
-                    [group runWithDispatcher:dispatcher];
-                    CDRExampleState state = group.state;
-                    expect(state).to(equal(CDRExampleStateFailed));
-                });
-            });
         });
     });
 
@@ -566,7 +586,7 @@ describe(@"CDRExampleGroup", ^{
 
         describe(@"when initialized as a root group", ^{
             beforeEach(^{
-                group = [[CDRExampleGroup alloc] initWithText:@"I am a root group" isRoot:YES];
+                group = [[[CDRExampleGroup alloc] initWithText:@"I am a root group" isRoot:YES] autorelease];
             });
 
             it(@"should return false", ^{
@@ -643,7 +663,7 @@ describe(@"CDRExampleGroup", ^{
             __block CDRExampleGroup *rootGroup;
 
             beforeEach(^{
-                rootGroup = [[CDRExampleGroup alloc] initWithText:@"wibble wobble" isRoot:YES];
+                rootGroup = [[[CDRExampleGroup alloc] initWithText:@"wibble wobble" isRoot:YES] autorelease];
                 [rootGroup add:group];
 
                 id<CDRExampleParent> parent = group.parent;
@@ -676,12 +696,12 @@ describe(@"CDRExampleGroup", ^{
         beforeEach(^{
             test = NO;
             FibonacciCalculator *calculator = [[[FibonacciCalculator alloc] init] autorelease];
-            firstExample = [[CDRExample alloc] initWithText:@"I'm Slow!" andBlock:^{
+            firstExample = [[[CDRExample alloc] initWithText:@"I'm Slow!" andBlock:^{
                 [calculator computeFibonnaciNumberVeryVerySlowly:4];
-            }];
-            secondExample = [[CDRExample alloc] initWithText:@"I'm Slower!" andBlock:^{
+            }] autorelease];
+            secondExample = [[[CDRExample alloc] initWithText:@"I'm Slower!" andBlock:^{
                 [calculator computeFibonnaciNumberVeryVerySlowly:5];
-            }];
+            }] autorelease];
 
             exampleGroup = [[[CDRExampleGroup alloc] initWithText:@"I have slow examples"] autorelease];
             [exampleGroup add:firstExample];

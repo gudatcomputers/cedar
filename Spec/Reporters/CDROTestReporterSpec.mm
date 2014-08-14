@@ -2,9 +2,9 @@
 // Normally you would include this file out of the framework.  However, we're
 // testing the framework here, so including the file from the framework will
 // conflict with the compiler attempting to include the file from the project.
-#import "SpecHelper.h"
+#import "CDRSpecHelper.h"
 #else
-#import <Cedar/SpecHelper.h>
+#import <Cedar/CDRSpecHelper.h>
 #endif
 
 #import "CDROTestReporter.h"
@@ -57,6 +57,7 @@ describe(@"CDROTestReporter", ^{
     __block CDRExample *passingExample, *failingExample, *focusedExample;
     __block NSString *bundleName;
     __block CDRReportDispatcher *dispatcher;
+    NSString *cedarVersionString = @"0.1.2 (a71e8f)";
 
     beforeEach(^{
         bundleName = [NSBundle mainBundle].bundleURL.pathComponents.lastObject;
@@ -68,7 +69,7 @@ describe(@"CDROTestReporter", ^{
             bundleName = @"Cedar.framework";
         }
 
-        reporter = [[[CDROTestReporter alloc] init] autorelease];
+        reporter = [[[CDROTestReporter alloc] initWithCedarVersion:cedarVersionString] autorelease];
         reporter.reporter_output = [NSMutableString string];
         dispatcher = [[[CDRReportDispatcher alloc] initWithReporters:@[reporter]] autorelease];
 
@@ -100,6 +101,10 @@ describe(@"CDROTestReporter", ^{
                 [dispatcher runWillStartWithGroups:@[group1] andRandomSeed:1337];
             });
 
+            it(@"should report the Cedar version", ^{
+                reporter.reporter_output should contain([NSString stringWithFormat:@"Cedar Version: %@", cedarVersionString]);
+            });
+
             it(@"should report the random seed", ^{
                 reporter.reporter_output should contain(@"Cedar Random Seed: 1337");
             });
@@ -117,14 +122,18 @@ describe(@"CDROTestReporter", ^{
             __block BOOL originalState;
 
             beforeEach(^{
-                originalState = [SpecHelper specHelper].shouldOnlyRunFocused;
-                [SpecHelper specHelper].shouldOnlyRunFocused = YES;
+                originalState = [CDRSpecHelper specHelper].shouldOnlyRunFocused;
+                [CDRSpecHelper specHelper].shouldOnlyRunFocused = YES;
 
                 [dispatcher runWillStartWithGroups:@[focusedGroup] andRandomSeed:34];
             });
 
             afterEach(^{
-                [SpecHelper specHelper].shouldOnlyRunFocused = originalState;
+                [CDRSpecHelper specHelper].shouldOnlyRunFocused = originalState;
+            });
+
+            it(@"should report the Cedar version", ^{
+                reporter.reporter_output should contain([NSString stringWithFormat:@"Cedar Version: %@", cedarVersionString]);
             });
 
             it(@"should report the random seed", ^{
@@ -161,8 +170,8 @@ describe(@"CDROTestReporter", ^{
         context(@"when focused", ^{
             __block BOOL originalState;
             beforeEach(^{
-                originalState = [SpecHelper specHelper].shouldOnlyRunFocused;
-                [SpecHelper specHelper].shouldOnlyRunFocused = YES;
+                originalState = [CDRSpecHelper specHelper].shouldOnlyRunFocused;
+                [CDRSpecHelper specHelper].shouldOnlyRunFocused = YES;
 
                 [dispatcher runWillStartWithGroups:@[focusedGroup] andRandomSeed:42];
                 reporter.reporter_output = [NSMutableString string];
@@ -170,7 +179,7 @@ describe(@"CDROTestReporter", ^{
             });
 
             afterEach(^{
-                [SpecHelper specHelper].shouldOnlyRunFocused = originalState;
+                [CDRSpecHelper specHelper].shouldOnlyRunFocused = originalState;
             });
 
             it(@"should report the end of all the tests", ^{
@@ -211,7 +220,7 @@ describe(@"CDROTestReporter", ^{
         });
 
         it(@"should finish the passing example", ^{
-            reporter.reporter_output should contain(@"Test Case '-[CDRSpec my_group_passing]' passed (0.000 seconds).");
+            reporter.reporter_output should contain(@"Test Case '-[CDRSpec my_group_passing]' passed (");
         });
 
         it(@"should report the passing example", ^{
@@ -219,7 +228,7 @@ describe(@"CDROTestReporter", ^{
         });
 
         it(@"should finish the passing example", ^{
-            reporter.reporter_output should contain(@"Test Case '-[CDRSpec my_group_failing]' failed (0.000 seconds).");
+            reporter.reporter_output should contain(@"Test Case '-[CDRSpec my_group_failing]' failed (");
         });
     });
 
@@ -256,7 +265,7 @@ describe(@"CDROTestReporter", ^{
         });
 
         it(@"should finish the passing example", ^{
-            reporter.reporter_output should contain(@"Test Case '-[CDRSpec my_group_passing]' passed (0.000 seconds).");
+            reporter.reporter_output should contain(@"Test Case '-[CDRSpec my_group_passing]' passed");
         });
 
         it(@"should report the spec class finishing after the run completes", ^{
@@ -268,12 +277,16 @@ describe(@"CDROTestReporter", ^{
             [reporter.reporter_output substringFromIndex:range.location] should contain(@"Executed 3 tests, with 1 failure (0 unexpected) in");
         });
 
-        it(@"should report the passing example", ^{
+        it(@"should report the failing example", ^{
             reporter.reporter_output should contain(@"Test Case '-[MyExampleSpec my_group_other_failing]' started.");
         });
 
-        it(@"should finish the passing example", ^{
-            reporter.reporter_output should contain(@"Test Case '-[MyExampleSpec my_group_other_failing]' failed (0.000 seconds).");
+        it(@"should report the failing example's error", ^{
+            reporter.reporter_output should contain(@": error: -[MyExampleSpec my_group_other_failing] :");
+        });
+
+        it(@"should finish the failing example", ^{
+            reporter.reporter_output should contain(@"Test Case '-[MyExampleSpec my_group_other_failing]' failed");
         });
 
         it(@"should not report the pending example", ^{

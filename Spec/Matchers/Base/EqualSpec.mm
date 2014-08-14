@@ -1,7 +1,7 @@
 #if TARGET_OS_IPHONE
-#import <Cedar/SpecHelper.h>
+#import <Cedar/CDRSpecHelper.h>
 #else
-#import <Cedar/SpecHelper.h>
+#import <Cedar/CDRSpecHelper.h>
 #endif
 
 #ifndef NS_ROOT_CLASS
@@ -358,6 +358,29 @@ describe(@"equal matcher", ^{
                     });
                 });
             });
+
+            describe(@"and the values are nil", ^{
+                id actualValue = nil;
+                beforeEach(^{
+                    expectedValue = nil;
+                });
+
+                describe(@"positive match", ^{
+                    it(@"should fail with a sensible failure message", ^{
+                        expectFailureWithMessage(@"Unexpected use of equal matcher to check for nil; use the be_nil matcher to match nil values", ^{
+                            expect(actualValue).to(equal(expectedValue));
+                        });
+                    });
+                });
+
+                describe(@"negative match", ^{
+                    it(@"should fail with a sensible failure message", ^{
+                        expectFailureWithMessage(@"Unexpected use of equal matcher to check for nil; use the be_nil matcher to match nil values", ^{
+                            expect(actualValue).to(equal(expectedValue));
+                        });
+                    });
+                });
+            });
         });
 
         describe(@"and the expected value is also declared as an id", ^{
@@ -402,6 +425,30 @@ describe(@"equal matcher", ^{
                     });
                 });
             });
+
+            describe(@"and the values are nil", ^{
+                id actualValue = nil;
+                beforeEach(^{
+                    expectedValue = nil;
+                });
+
+                describe(@"positive match", ^{
+                    it(@"should fail with a sensible failure message", ^{
+                        expectFailureWithMessage(@"Unexpected use of equal matcher to check for nil; use the be_nil matcher to match nil values", ^{
+                            expect(actualValue).to(equal(expectedValue));
+                        });
+                    });
+                });
+
+                describe(@"negative match", ^{
+                    it(@"should fail with a sensible failure message", ^{
+                        expectFailureWithMessage(@"Unexpected use of equal matcher to check for nil; use the be_nil matcher to match nil values", ^{
+                            expect(actualValue).to(equal(expectedValue));
+                        });
+                    });
+                });
+            });
+
         });
 
         describe(@"and the expected value is declared as an NSNumber *", ^{
@@ -583,6 +630,29 @@ describe(@"equal matcher", ^{
                     });
                 });
             });
+
+            describe(@"and the values are nil", ^{
+                NSObject *actualValue = nil;
+                beforeEach(^{
+                    expectedValue = nil;
+                });
+
+                describe(@"positive match", ^{
+                    it(@"should fail with a sensible failure message", ^{
+                        expectFailureWithMessage(@"Unexpected use of equal matcher to check for nil; use the be_nil matcher to match nil values", ^{
+                            expect(actualValue).to(equal(expectedValue));
+                        });
+                    });
+                });
+
+                describe(@"negative match", ^{
+                    it(@"should fail with a sensible failure message", ^{
+                        expectFailureWithMessage(@"Unexpected use of equal matcher to check for nil; use the be_nil matcher to match nil values", ^{
+                            expect(actualValue).to(equal(expectedValue));
+                        });
+                    });
+                });
+            });
         });
 
         describe(@"and the expected value is declared as an id", ^{
@@ -624,6 +694,29 @@ describe(@"equal matcher", ^{
                 describe(@"negative match", ^{
                     it(@"should pass", ^{
                         expect(actualValue).to_not(equal(expectedValue));
+                    });
+                });
+            });
+
+            describe(@"and the values are nil", ^{
+                NSObject *actualValue = nil;
+                beforeEach(^{
+                    expectedValue = nil;
+                });
+
+                describe(@"positive match", ^{
+                    it(@"should fail with a sensible failure message", ^{
+                        expectFailureWithMessage(@"Unexpected use of equal matcher to check for nil; use the be_nil matcher to match nil values", ^{
+                            expect(actualValue).to(equal(expectedValue));
+                        });
+                    });
+                });
+
+                describe(@"negative match", ^{
+                    it(@"should fail with a sensible failure message", ^{
+                        expectFailureWithMessage(@"Unexpected use of equal matcher to check for nil; use the be_nil matcher to match nil values", ^{
+                            expect(actualValue).to(equal(expectedValue));
+                        });
                     });
                 });
             });
@@ -843,7 +936,6 @@ describe(@"equal matcher", ^{
             });
         });
     });
-
 
     describe(@"when the actual value is declared as char array", ^{
         // char[] cannot be copied through blocks
@@ -1301,6 +1393,28 @@ describe(@"equal matcher", ^{
                 describe(@"negative match", ^{
                     it(@"should pass", ^{
                         expect(actualValue).to_not(equal(expectedValue));
+                    });
+                });
+
+                describe(@"and the expected value is nil", ^{
+                    beforeEach(^{
+                        expectedValue = nil;
+                    });
+
+                    describe(@"positive match", ^{
+                        it(@"should fail with a sensible failure message", ^{
+                            expectFailureWithMessage(@"Unexpected use of equal matcher to check for nil; use the be_nil matcher to match nil values", ^{
+                                expect(actualValue).to(equal(expectedValue));
+                            });
+                        });
+                    });
+
+                    describe(@"negative match", ^{
+                        it(@"should fail with a sensible failure message", ^{
+                            expectFailureWithMessage(@"Unexpected use of equal matcher to check for nil; use the be_nil matcher to match nil values", ^{
+                                expect(actualValue).to(equal(expectedValue));
+                            });
+                        });
                     });
                 });
             });
@@ -2488,7 +2602,7 @@ describe(@"equal matcher", ^{
 
             describe(@"and the values are not equal", ^{
                 beforeEach(^{
-                    expectedArray = [@[@"goodbye"] mutableCopy];
+                    expectedArray = [[@[@"goodbye"] mutableCopy] autorelease];
                 });
 
                 describe(@"positive match", ^{
@@ -2502,6 +2616,74 @@ describe(@"equal matcher", ^{
                 describe(@"negative match", ^{
                     it(@"should pass", ^{
                         expect(actualArray).to_not(equal(expectedArray));
+                    });
+                });
+            });
+        });
+    });
+
+    describe(@"when the actual value is declared as an NSRange", ^{
+        NSRange actualValue = NSMakeRange(42, 56);
+
+        describe(@"and the expected value is declared as an NSRange", ^{
+            __block NSRange expectedValue;
+
+            describe(@"and the values are equal", ^{
+                beforeEach(^{
+                    expectedValue = NSMakeRange(42, 56);
+                });
+
+                describe(@"positive match", ^{
+                    it(@"should pass", ^{
+                        expect(actualValue).to(equal(expectedValue));
+                    });
+                });
+
+                describe(@"negative match", ^{
+                    it(@"should fail with a sensible failure message", ^{
+                        expectFailureWithMessage(@"Expected <{42, 56}> to not equal <{42, 56}>", ^{
+                            expect(actualValue).to_not(equal(expectedValue));
+                        });
+                    });
+                });
+            });
+
+            describe(@"and the locations are not equal", ^{
+                beforeEach(^{
+                    expectedValue = NSMakeRange(0, 56);
+                });
+
+                describe(@"positive match", ^{
+                    it(@"should fail with a sensible failure message", ^{
+                        expectFailureWithMessage(@"Expected <{42, 56}> to equal <{0, 56}>", ^{
+                            expect(actualValue).to(equal(expectedValue));
+                        });
+                    });
+                });
+
+                describe(@"negative match", ^{
+                    it(@"should pass", ^{
+                        expect(actualValue).to_not(equal(expectedValue));
+                    });
+                });
+            });
+
+            describe(@"and the lengths are not equal", ^{
+                beforeEach(^{
+                    expectedValue = NSMakeRange(42, 0);
+                });
+
+                describe(@"positive match", ^{
+                    it(@"should fail with a sensible failure message", ^{
+                        expectFailureWithMessage(@"Expected <{42, 56}> to equal <{42, 0}>", ^{
+                            expect(actualValue).to(equal(expectedValue));
+                        });
+                    });
+                });
+
+                describe(@"negative match", ^{
+                    it(@"should pass", ^{
+                        expect(actualValue).to_not(equal(expectedValue));
                     });
                 });
             });

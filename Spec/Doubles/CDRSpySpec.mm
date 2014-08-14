@@ -1,10 +1,12 @@
-#import <Cedar/SpecHelper.h>
+#import <Cedar/CDRSpecHelper.h>
 #import "SimpleIncrementer.h"
 #import "ObjectWithForwardingTarget.h"
 #import "ArgumentReleaser.h"
 #import "ObjectWithProperty.h"
 #import "SimpleKeyValueObserver.h"
 #import "ArgumentReleaser.h"
+#import "ObjectWithValueEquality.h"
+#import "DeallocNotifier.h"
 #import <objc/runtime.h>
 
 extern "C" {
@@ -26,7 +28,7 @@ describe(@"spy_on", ^{
         incrementer = [[[SimpleIncrementer alloc] init] autorelease];
         spy_on(incrementer);
 
-        [[SpecHelper specHelper].sharedExampleContext setObject:incrementer forKey:@"double"];
+        [[CDRSpecHelper specHelper].sharedExampleContext setObject:incrementer forKey:@"double"];
     });
 
     describe(@"method stubbing", ^{
@@ -72,6 +74,26 @@ describe(@"spy_on", ^{
 
             beforeEach(^{
                 incrementer stub_method("methodWithNumber1:andNumber2:").with(any([NSDecimalNumber class]), arg).and_return(@99);
+            });
+
+            context(@"when invoked with the incorrect class", ^{
+                it(@"should invoke the original method", ^{
+                    [incrementer methodWithNumber1:@2 andNumber2:arg] should equal(2 * [arg floatValue]);
+                });
+            });
+
+            context(@"when invoked with nil", ^{
+                it(@"should invoke the original method", ^{
+                    [incrementer methodWithNumber1:nil andNumber2:arg] should equal(0);
+                });
+            });
+        });
+
+        context(@"with an argument specified as any instance conforming to a specified protocol", ^{
+            NSNumber *arg = @123;
+
+            beforeEach(^{
+                incrementer stub_method("methodWithNumber1:andNumber2:").with(any(@protocol(InheritedProtocol)), arg).and_return(@99);
             });
 
             context(@"when invoked with the incorrect class", ^{
@@ -161,10 +183,50 @@ describe(@"spy_on", ^{
         incrementer.description should contain(@"SimpleIncrementer");
     });
 
+    describe(@"spying on an object that uses value-based equality checking", ^{
+        __block ObjectWithValueEquality *ordinaryObject, *spiedObject, *anotherSpiedObject;
+
+        beforeEach(^{
+            ordinaryObject = [[[ObjectWithValueEquality alloc] initWithInteger:42] autorelease];
+            spiedObject = [[[ObjectWithValueEquality alloc] initWithInteger:42] autorelease];
+            anotherSpiedObject = [[[ObjectWithValueEquality alloc] initWithInteger:42] autorelease];
+            spy_on(spiedObject);
+            spy_on(anotherSpiedObject);
+        });
+
+        it(@"should report equality correctly", ^{
+            [spiedObject isEqual:ordinaryObject] should be_truthy;
+            [ordinaryObject isEqual:spiedObject] should be_truthy;
+            [spiedObject isEqual:anotherSpiedObject] should be_truthy;
+        });
+
+        it(@"should return the same hash as the ordinary object", ^{
+            [ordinaryObject hash] should equal([spiedObject hash]);
+        });
+    });
+
     it(@"should only spy on a given object once" , ^{
         [incrementer increment];
         spy_on(incrementer);
         incrementer should have_received("increment");
+    });
+
+    describe(@"spying on an object that supports KVC", ^{
+        it(@"should forward setValue:forKey:", ^{
+            [incrementer setValue:@"42" forKey:@"string"];
+
+            incrementer should have_received(@selector(setValue:forKey:)).with(@"42", @"string");
+
+            incrementer.string should equal(@"42");
+        });
+
+        it(@"should forward valueForKey:", ^{
+            incrementer.string = @"42";
+
+            [incrementer valueForKey:@"string"] should equal(@"42");
+
+            incrementer should have_received(@selector(valueForKey:)).with(@"string");
+        });
     });
 
     describe(@"spying on an object with a forwarding target", ^{
@@ -337,6 +399,17 @@ describe(@"spy_on", ^{
 
             itShouldPlayNiceWithKVO();
         });
+    });
+
+    it(@"should allow spied upon objects to deallocate normally", ^{
+        __block BOOL wasCalled = NO;
+        DeallocNotifier *notifier = [[DeallocNotifier alloc] initWithNotificationBlock:^{
+            wasCalled = YES;
+        }];
+        spy_on(notifier);
+        [notifier release];
+
+        wasCalled should be_truthy;
     });
 });
 

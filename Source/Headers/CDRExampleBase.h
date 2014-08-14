@@ -2,8 +2,7 @@
 #import "CDRExampleParent.h"
 
 @class CDRSpec, CDRReportDispatcher;
-
-enum CDRExampleState {
+typedef NS_ENUM(NSInteger, CDRExampleState) {
     CDRExampleStateIncomplete = 0x00,
     CDRExampleStateSkipped = 0x01,
     CDRExampleStatePassed = 0x03,
@@ -11,11 +10,11 @@ enum CDRExampleState {
     CDRExampleStateFailed = 0x0F,
     CDRExampleStateError = 0x1F
 };
-typedef enum CDRExampleState CDRExampleState;
 
 @interface CDRExampleBase : NSObject {
   NSString *text_;
   NSObject<CDRExampleParent> *parent_;
+  CDRSpec *spec_;
   BOOL focused_;
   NSUInteger stackAddress_;
   NSDate *startDate_;

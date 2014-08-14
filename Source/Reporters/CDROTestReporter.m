@@ -2,26 +2,29 @@
 #import "CDRFunctions.h"
 #import "CDRExample.h"
 #import "CDRExampleGroup.h"
-#import "SpecHelper.h"
+#import "CDRSpecHelper.h"
 #import "CDRSpec.h"
 #import "CDROTestNamer.h"
 
 @interface CDROTestReporter ()
-@property (strong, nonatomic) NSDate *startTime;
-@property (strong, nonatomic) NSDate *endTime;
-@property (strong, nonatomic) NSDateFormatter *formatter;
-@property (strong, nonatomic) CDROTestNamer *namer;
+@property (retain, nonatomic) NSString *cedarVersionString;
 
-@property (strong, nonatomic) NSString *currentSuiteName;
-@property (strong, nonatomic) CDRExampleGroup *currentSuite;
+@property (retain, nonatomic) NSDate *startTime;
+@property (retain, nonatomic) NSDate *endTime;
+@property (retain, nonatomic) NSDateFormatter *formatter;
+@property (retain, nonatomic) CDROTestNamer *namer;
 
-@property (strong, nonatomic) NSArray *rootGroups;
+@property (retain, nonatomic) NSString *currentSuiteName;
+@property (retain, nonatomic) CDRExampleGroup *currentSuite;
+
+@property (retain, nonatomic) NSArray *rootGroups;
 @property (assign, nonatomic) NSUInteger failedCount;
 @end
 
 @implementation CDROTestReporter
 
 - (void)dealloc {
+    self.cedarVersionString = nil;
     self.startTime = nil;
     self.endTime = nil;
     self.formatter = nil;
@@ -32,12 +35,13 @@
     [super dealloc];
 }
 
-- (id)init {
+- (instancetype)initWithCedarVersion:(NSString *)cedarVersionString {
     self = [super init];
     if (self) {
         self.formatter = [[[NSDateFormatter alloc] init] autorelease];
         [self.formatter setDateFormat:@"YYYY-MM-dd HH:mm:ss Z"];
-        self.namer = [[CDROTestNamer alloc] init];
+        self.namer = [[[CDROTestNamer alloc] init] autorelease];
+        self.cedarVersionString = cedarVersionString;
     }
     return self;
 }
@@ -48,6 +52,7 @@
     self.startTime = [NSDate date];
     self.rootGroups = groups;
 
+    [self logMessage:[NSString stringWithFormat:@"Cedar Version: %@", self.cedarVersionString]];
     [self logMessage:[NSString stringWithFormat:@"Cedar Random Seed: %d", seed]];
 
     [self startSuite:[self rootSuiteName] atDate:self.startTime];
@@ -55,7 +60,7 @@
 }
 
 - (void)runDidComplete {
-    if (self.currentSuiteName){
+    if (self.currentSuiteName) {
         [self finishSuite:self.currentSuiteName atDate:[NSDate date]];
         [self printStatsForExamples:@[self.currentSuite]];
     }
@@ -90,13 +95,16 @@
         NSString *testSuite = [self.namer classNameForExample:example];
         NSString *methodName = [self.namer methodNameForExample:example];
         NSString *status = [self stateNameForExample:example];
+        [self logMessage:[self stringForErrorsForExample:example
+                                               suiteName:testSuite
+                                                caseName:methodName]];
         [self logMessage:[NSString stringWithFormat:@"Test Case '-[%@ %@]' %@ (%.3f seconds).\n",
                           testSuite, methodName, status, example.runTime]];
     }
 }
 
 - (void)runWillStartSpec:(CDRSpec *)spec {
-    if ([self shouldReportSpec:spec]){
+    if ([self shouldReportSpec:spec]) {
         [self startSuite:NSStringFromClass([spec class]) atDate:[NSDate date]];
     }
 }
@@ -117,7 +125,7 @@
 #pragma mark - Private
 
 - (BOOL)isFocused {
-    return [SpecHelper specHelper].shouldOnlyRunFocused;
+    return [CDRSpecHelper specHelper].shouldOnlyRunFocused;
 }
 
 - (NSString *)rootSuiteName {
@@ -162,15 +170,19 @@
     }
 }
 
-- (NSString *)recordFailedExample:(CDRExample *)example
-                        suiteName:(NSString *)suiteName
-                         caseName:(NSString *)caseName {
-    NSString *errorDescription = [example.failure.reason stringByReplacingOccurrencesOfString:@"\n" withString:@" "];
-    NSString *errorMessage = [NSString stringWithFormat:@"%@:%d: error: -[%@ %@] : %@",
-                              example.failure.fileName, example.failure.lineNumber,
-                              suiteName, caseName,
-                              errorDescription];
-    return errorMessage;
+- (NSString *)stringForErrorsForExample:(CDRExample *)example
+                              suiteName:(NSString *)suiteName
+                               caseName:(NSString *)caseName {
+    if (example.failure) {
+        NSString *errorDescription = [example.failure.reason stringByReplacingOccurrencesOfString:@"\n" withString:@" "];
+        NSString *errorMessage = [NSString stringWithFormat:@"%@:%d: error: -[%@ %@] : %@",
+                                  example.failure.fileName, example.failure.lineNumber,
+                                  suiteName, caseName,
+                                  errorDescription];
+        return errorMessage;
+    } else {
+        return @"";
+    }
 }
 
 - (void)printStatsForExamples:(NSArray *)examples {

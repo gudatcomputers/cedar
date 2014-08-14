@@ -10,13 +10,7 @@
 #pragma mark View lifecycle
 - (void)viewDidLoad {
     [super viewDidLoad];
-
-    if (getenv("CEDAR_GUI_SPECS")) {
-        [self performSelectorInBackground:@selector(startSpecs) withObject:NULL];
-    } else {
-        int exitStatus = runSpecsWithinUIApplication();
-        exitWithStatusFromUIApplication(exitStatus);
-    }
+    [self performSelectorInBackground:@selector(startSpecs) withObject:NULL];
 }
 
 - (void)viewDidUnload {
@@ -27,7 +21,7 @@
 }
 
 - (void)startSpecs {
-    runSpecsWithCustomExampleReporters([NSArray arrayWithObject:self]);
+    CDRRunSpecsWithCustomExampleReporters([NSArray arrayWithObject:self]);
 }
 
 - (void)pushRootSpecStatusController:(NSArray *)groups {

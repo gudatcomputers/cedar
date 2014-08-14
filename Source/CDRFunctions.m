@@ -4,10 +4,12 @@
 #import "CDRExampleGroup.h"
 #import "CDRExampleReporter.h"
 #import "CDRDefaultReporter.h"
-#import "SpecHelper.h"
+#import "CDRSpecHelper.h"
 #import "CDRFunctions.h"
 #import "CDRReportDispatcher.h"
 #import "CDROTestNamer.h"
+
+static NSString * const CDRBuildVersionKey = @"CDRBuildVersionSHA";
 
 #pragma mark - Helpers
 
@@ -35,10 +37,37 @@ NSArray *CDRSelectClasses(BOOL (^classSelectionPredicate)(Class class)) {
         Class class = classes[i];
 
         if (classSelectionPredicate(class)) {
+            [class retain];
             [selectedClasses addObject:class];
+            [class release];
         }
     }
     return selectedClasses;
+}
+
+NSString *CDRVersionString() {
+    NSString *releaseVersion = nil, *versionDetails = nil;
+
+#if COCOAPODS
+    releaseVersion = [NSString stringWithFormat:@"%d.%d.%d", COCOAPODS_VERSION_MAJOR_Cedar, COCOAPODS_VERSION_MINOR_Cedar, COCOAPODS_VERSION_PATCH_Cedar];
+    versionDetails = @"from CocoaPods";
+#endif
+
+    if (!releaseVersion) {
+        NSBundle *cedarFrameworkBundle = [NSBundle bundleForClass:[CDRSpec class]];
+        releaseVersion = [cedarFrameworkBundle objectForInfoDictionaryKey:@"CFBundleShortVersionString"];
+        versionDetails = [cedarFrameworkBundle objectForInfoDictionaryKey:CDRBuildVersionKey];
+    }
+
+    if (releaseVersion) {
+        NSString *versionString = [NSString stringWithFormat:@"Cedar Version: %@", releaseVersion];
+        if (versionDetails) {
+            versionString = [versionString stringByAppendingFormat:@" (%@)", versionDetails];
+        }
+        return versionString;
+    } else {
+        return @"unknown";
+    }
 }
 
 #pragma mark - Globals
@@ -63,11 +92,11 @@ BOOL CDRClassHasClassMethod(Class class, SEL selector) {
 }
 
 void CDRDefineGlobalBeforeAndAfterEachBlocks() {
-    [SpecHelper specHelper].globalBeforeEachClasses = CDRSelectClasses(^BOOL(Class class) {
+    [CDRSpecHelper specHelper].globalBeforeEachClasses = CDRSelectClasses(^BOOL(Class class) {
         return CDRClassHasClassMethod(class, @selector(beforeEach));
     });
 
-    [SpecHelper specHelper].globalAfterEachClasses = CDRSelectClasses(^BOOL(Class class) {
+    [CDRSpecHelper specHelper].globalAfterEachClasses = CDRSelectClasses(^BOOL(Class class) {
         return CDRClassHasClassMethod(class, @selector(afterEach));
     });
 }
@@ -85,12 +114,13 @@ NSArray *CDRReporterClassesFromEnv(const char *defaultReporterClassName) {
 
     NSMutableArray *reporterClasses = [NSMutableArray arrayWithCapacity:[reporterClassNames count]];
     for (NSString *reporterClassName in reporterClassNames) {
-        Class reporterClass = NSClassFromString(reporterClassName);
+        Class reporterClass = [NSClassFromString(reporterClassName) retain];
         if (!reporterClass) {
             printf("***** The specified reporter class \"%s\" does not exist. *****\n", [reporterClassName cStringUsingEncoding:NSUTF8StringEncoding]);
             return nil;
         }
         [reporterClasses addObject:reporterClass];
+        [reporterClass release];
     }
     return reporterClasses;
 }
@@ -100,7 +130,13 @@ NSArray *CDRReportersFromEnv(const char *defaultReporterClassName) {
 
     NSMutableArray *reporters = [NSMutableArray arrayWithCapacity:reporterClasses.count];
     for (Class reporterClass in reporterClasses) {
-        [reporters addObject:[[[reporterClass alloc] init] autorelease]];
+        id<CDRExampleReporter> reporter = nil;
+        if ([reporterClass instancesRespondToSelector:@selector(initWithCedarVersion:)]) {
+            reporter = [[[reporterClass alloc] initWithCedarVersion:CDRVersionString()] autorelease];
+        } else {
+            reporter = [[[reporterClass alloc] init] autorelease];
+        }
+        [reporters addObject:reporter];
     }
     return reporters;
 }
@@ -132,9 +168,10 @@ NSArray *CDRSpecClassesToRun() {
 NSArray *CDRSpecsFromSpecClasses(NSArray *specClasses) {
     NSMutableArray *specs = [NSMutableArray arrayWithCapacity:specClasses.count];
     for (Class class in specClasses) {
-        CDRSpec *spec = [[[class alloc] init] autorelease];
+        CDRSpec *spec = [[class alloc] init];
         [spec defineBehaviors];
         [specs addObject:spec];
+        [spec release];
     }
     return specs;
 }
@@ -152,7 +189,7 @@ void CDRMarkFocusedExamplesInSpecs(NSArray *specs) {
     }
 
     for (CDRSpec *spec in specs) {
-        SpecHelper.specHelper.shouldOnlyRunFocused |= spec.rootGroup.hasFocusedExamples;
+        CDRSpecHelper.specHelper.shouldOnlyRunFocused |= spec.rootGroup.hasFocusedExamples;
     }
 }
 
@@ -179,22 +216,24 @@ void CDRMarkXcodeFocusedExamplesInSpecs(NSArray *specs, NSArray *arguments) {
     }
 
     // TODO: should we handle the InvertScope + All case?
-    if ([@"All" isEqual:examplesArgument]) {
+    if ([@[@"Self", @"All"] containsObject:examplesArgument]) {
         return;
     }
 
     NSMutableDictionary *testMethodNamesBySpecClass = [NSMutableDictionary dictionary];
     for (NSString *testName in [examplesArgument componentsSeparatedByString:@","]) {
         NSArray *components = [testName componentsSeparatedByString:@"/"];
-        NSString *specClass = [components objectAtIndex:0];
-        NSString *testMethod = [components objectAtIndex:1];
+        if (components.count > 1) {
+            NSString *specClass = [components objectAtIndex:0];
+            NSString *testMethod = [components objectAtIndex:1];
 
-        NSMutableSet *testMethods = [testMethodNamesBySpecClass objectForKey:specClass];
-        if (!testMethods) {
-            testMethods = [NSMutableSet set];
-            [testMethodNamesBySpecClass setObject:testMethods forKey:specClass];
+            NSMutableSet *testMethods = [testMethodNamesBySpecClass objectForKey:specClass];
+            if (!testMethods) {
+                testMethods = [NSMutableSet set];
+                [testMethodNamesBySpecClass setObject:testMethods forKey:specClass];
+            }
+            [testMethods addObject:testMethod];
         }
-        [testMethods addObject:testMethod];
     }
 
     CDROTestNamer *testNamer = [[CDROTestNamer alloc] init];
@@ -214,7 +253,7 @@ void CDRMarkXcodeFocusedExamplesInSpecs(NSArray *specs, NSArray *arguments) {
     [testNamer release];
 
     for (CDRSpec *spec in specs) {
-        SpecHelper.specHelper.shouldOnlyRunFocused |= spec.rootGroup.hasFocusedExamples;
+        CDRSpecHelper.specHelper.shouldOnlyRunFocused |= spec.rootGroup.hasFocusedExamples;
     }
 }
 
@@ -239,7 +278,7 @@ NSArray *CDRPermuteSpecClassesWithSeed(NSArray *unsortedSpecClasses, unsigned in
         NSUInteger idx = rand() % permutedSpecClasses.count;
         [permutedSpecClasses exchangeObjectAtIndex:i withObjectAtIndex:idx];
     }
-    return permutedSpecClasses;
+    return [permutedSpecClasses autorelease];
 }
 
 unsigned int CDRGetRandomSeed() {
@@ -253,7 +292,7 @@ unsigned int CDRGetRandomSeed() {
 void __attribute__((weak)) __gcov_flush(void) {
 }
 
-int runSpecsWithCustomExampleReporters(NSArray *reporters) {
+int CDRRunSpecsWithCustomExampleReporters(NSArray *reporters) {
     @autoreleasepool {
         CDRDefineSharedExampleGroups();
         CDRDefineGlobalBeforeAndAfterEachBlocks();
@@ -276,22 +315,38 @@ int runSpecsWithCustomExampleReporters(NSArray *reporters) {
         [dispatcher runDidComplete];
         int result = [dispatcher result];
 
+        [dispatcher release];
+
         __gcov_flush();
 
         return result;
     }
 }
 
-int runSpecs() {
+int CDRRunSpecs() {
+    BOOL isTestBundle = objc_getClass("SenTestProbe") || objc_getClass("XCTestProbe");
+    const char *defaultReporterClassName = isTestBundle ? "CDROTestReporter,CDRBufferedDefaultReporter" : "CDRDefaultReporter";
+
     @autoreleasepool {
-        NSArray *reporters = CDRReportersFromEnv("CDRDefaultReporter");
+        NSArray *reporters = CDRReportersFromEnv(defaultReporterClassName);
         if (![reporters count]) {
-            @throw @"No reporters?  WTF?";
+            return -999;
+        } else {
+            return CDRRunSpecsWithCustomExampleReporters(reporters);
         }
-        return runSpecsWithCustomExampleReporters(reporters);
     }
 }
 
+#pragma mark - Deprecated
+
+int runSpecs() {
+    return CDRRunSpecs();
+}
+
 int runAllSpecs() {
-    return runSpecs();
+    return CDRRunSpecs();
+}
+
+int runSpecsWithCustomExampleReporters(NSArray *reporters) {
+    return CDRRunSpecsWithCustomExampleReporters(reporters);
 }

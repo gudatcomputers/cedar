@@ -2,9 +2,9 @@
 // Normally you would include this file out of the framework.  However, we're
 // testing the framework here, so including the file from the framework will
 // conflict with the compiler attempting to include the file from the project.
-#import "SpecHelper.h"
+#import "CDRSpecHelper.h"
 #else
-#import <Cedar/SpecHelper.h>
+#import <Cedar/CDRSpecHelper.h>
 #endif
 
 #import "CDRSpec.h"
@@ -22,7 +22,7 @@ describe(@"CDRSpec", ^{
         spec = [[[CDRSpec alloc] init] autorelease];
 
         spy_on(spec.symbolicator);
-        spec.symbolicator stub_method("symbolicateAddresses:error:");
+        spec.symbolicator stub_method("symbolicateAddresses:error:").and_return(YES);
         spec.symbolicator stub_method("lineNumberForStackAddress:").and_do(^(NSInvocation *i){
             NSUInteger lineNumber;
             [i getArgument:&lineNumber atIndex:2];

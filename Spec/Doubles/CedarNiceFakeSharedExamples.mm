@@ -1,4 +1,4 @@
-#import <Cedar/SpecHelper.h>
+#import <Cedar/CDRSpecHelper.h>
 #import "SimpleIncrementer.h"
 #import "StubbedMethod.h"
 
@@ -53,6 +53,26 @@ sharedExamplesFor(@"a Cedar nice fake", ^(NSDictionary *sharedContext) {
 
             beforeEach(^{
                 myNiceFake stub_method("methodWithNumber1:andNumber2:").with(any([NSDecimalNumber class]), arg).and_return(@99);
+            });
+
+            context(@"when invoked with the incorrect class", ^{
+                it(@"should return 0", ^{
+                    [myNiceFake methodWithNumber1:@3.14159265359 andNumber2:arg] should equal(0);
+                });
+            });
+
+            context(@"when invoked with nil", ^{
+                it(@"should return 0", ^{
+                    [myNiceFake methodWithNumber1:nil andNumber2:arg] should equal(0);
+                });
+            });
+        });
+
+        context(@"with an argument specified as any instance conforming to a specified protocol", ^{
+            NSNumber *arg = @123;
+
+            beforeEach(^{
+                myNiceFake stub_method("methodWithNumber1:andNumber2:").with(any(@protocol(InheritedProtocol)), arg).and_return(@99);
             });
 
             context(@"when invoked with the incorrect class", ^{
