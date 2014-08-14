@@ -76,14 +76,17 @@ void CDRRunTests(id self, SEL _cmd, id ignored) {
 }
 
 - (void)runSpecsAndExit {
-    if (getenv("CEDAR_GUI_SPECS")) {
-        window_ = [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
+    window_ = [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
 
+    if (getenv("CEDAR_GUI_SPECS")) {
         viewController_ = [[CDRExampleReporterViewController alloc] init];
         [window_ addSubview:viewController_.view];
 
         [window_ makeKeyAndVisible];
     } else {
+        window_.rootViewController = [[UIViewController alloc] init];
+        [window_ makeKeyAndVisible];
+
         [self runSpecs];
         [self exitWithAggregateStatus];
     }
